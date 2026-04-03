@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080a0e">
+<title>FlowState GTD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════
+   DESIGN SYSTEM — warm dark, editorial
+══════════════════════════════════════════ */
+:root {
+  --ink:    #080a0e;
+  --ink1:   #0f1117;
+  --ink2:   #161a22;
+  --ink3:   #1e232d;
+  --ink4:   #252b38;
+  --rule:   #252b38;
+  --rule2:  #323b4e;
+  --dust:   #eef0f5;
+  --dust1:  #b0b8cc;
+  --dust2:  #6b7690;
+  --dust3:  #3a4257;
+  --gold:   #e8c96d;
+  --gold-d: rgba(232,201,109,.13);
+  --blue:   #5b87f5;
+  --blue-d: rgba(91,135,245,.13);
+  --grn:    #3ecb8b;
+  --grn-d:  rgba(62,203,139,.12);
+  --red:    #f07070;
+  --red-d:  rgba(240,112,112,.12);
+  --pur:    #a07cf5;
+  --pur-d:  rgba(160,124,245,.12);
+  --org:    #f0933a;
+  --org-d:  rgba(240,147,58,.12);
+  --teal:   #3acce0;
+  --teal-d: rgba(58,204,224,.12);
+  --r:      8px;
+  --r-sm:   5px;
+  --r-lg:   14px;
+  --nav:    62px;
+  --hdr:    50px;
+  --safe:   env(safe-area-inset-bottom, 0px);
+  --serif:  'Instrument Serif', Georgia, serif;
+  --sans:   'Geist', system-ui, sans-serif;
+  --mono:   'Geist Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { font-family: var(--sans); background: var(--ink); color: var(--dust); font-size: 14px; display: flex; flex-direction: column; }
+
+/* ══ SCROLLBARS ══ */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rule2); border-radius: 2px; }
+
+/* ══ HEADER ══ */
+.hdr {
+  height: var(--hdr); background: var(--ink1); border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0; z-index: 50;
+}
+.logo {
+  font-family: var(--serif); font-size: 19px; font-style: italic;
+  background: linear-gradient(135deg, var(--gold), #f5e4a0);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  letter-spacing: -.2px; flex-shrink: 0;
+}
+.hdr-view { font-size: 12px; font-weight: 500; color: var(--dust2); flex: 1; text-align: center; letter-spacing: .3px; }
+.hdr-btn {
+  width: 32px; height: 32px; border-radius: var(--r-sm);
+  background: var(--ink3); border: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer; transition: all .15s; flex-shrink: 0; color: var(--dust1);
+}
+.hdr-btn:active { background: var(--ink4); transform: scale(.93); }
+.hdr-btn.gold { background: linear-gradient(135deg, #c9a940, #e8c96d); border: none; color: var(--ink); font-weight: 700; box-shadow: 0 2px 12px rgba(232,201,109,.25); }
+.hdr-btn.syncing { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══ STATUS STRIP ══ */
+.sstrip {
+  background: var(--ink2); border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; color: var(--dust2); font-family: var(--mono);
+  max-height: 0; overflow: hidden; transition: max-height .3s, padding .3s;
+}
+.sstrip.on { max-height: 30px; padding: 5px 14px; }
+.sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--grn); flex-shrink: 0; }
+.sdot.err { background: var(--red); }
+.sdot.busy { background: var(--gold); animation: blink .8s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+/* ══ BODY LAYOUT ══ */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ══ SIDEBAR (desktop) ══ */
+.sidebar {
+  display: none; width: 224px; background: var(--ink1);
+  border-right: 1px solid var(--rule); flex-direction: column;
+  flex-shrink: 0; overflow-y: auto; padding: 10px 8px;
+}
+@media(min-width: 680px) { .sidebar { display: flex; } .bot-nav { display: none !important; } .main { padding-bottom: 16px; } }
+
+.sb-cap {
+  margin: 2px 0 10px; background: linear-gradient(135deg, #c9a940, #e8c96d);
+  border: none; border-radius: var(--r); padding: 10px 14px;
+  color: var(--ink); font-family: var(--sans); font-size: 13px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%;
+  transition: opacity .15s; box-shadow: 0 2px 12px rgba(232,201,109,.2);
+}
+.sb-cap:active { opacity: .85; }
+.sb-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--dust3); padding: 8px 8px 3px; }
+.sb-it {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px;
+  border-radius: var(--r-sm); cursor: pointer; color: var(--dust1);
+  font-size: 13px; transition: all .12s; font-weight: 400;
+}
+.sb-it:hover { background: var(--ink3); color: var(--dust); }
+.sb-it.on { background: var(--gold-d); color: var(--gold); }
+.sb-badge { margin-left: auto; background: var(--ink4); color: var(--dust2); font-size: 10px; font-family: var(--mono); padding: 1px 7px; border-radius: 20px; }
+.sb-it.on .sb-badge { background: var(--gold-d); color: var(--gold); }
+.sb-ctx { display: flex; align-items: center; gap: 7px; padding: 5px 9px; border-radius: var(--r-sm); cursor: pointer; color: var(--dust2); font-size: 12px; transition: all .12s; }
+.sb-ctx:hover { background: var(--ink3); color: var(--dust1); }
+.sb-ctx.on { color: var(--dust); }
+.ctxdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sb-divider { border: none; border-top: 1px solid var(--rule); margin: 6px 0; }
+.sb-ai {
+  margin: 4px 0 2px; background: var(--ink3); border: 1px solid var(--rule2);
+  border-radius: var(--r); padding: 9px 12px; color: var(--dust1);
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; transition: all .15s;
+}
+.sb-ai:active { background: var(--ink4); }
+.ai-pip { width: 16px; height: 16px; border-radius: 4px; background: linear-gradient(135deg, var(--blue), var(--pur)); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; flex-shrink: 0; }
+
+/* ══ MAIN SCROLL ══ */
+.main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; padding-bottom: calc(var(--nav) + var(--safe) + 10px); }
+
+/* ══ VIEW HEADER ══ */
+.vhdr { padding: 14px 14px 8px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: var(--ink); z-index: 10; border-bottom: 1px solid var(--rule); }
+.vtitle { font-family: var(--serif); font-size: 22px; font-style: italic; letter-spacing: -.2px; }
+.vcnt { font-size: 10px; color: var(--dust2); background: var(--ink3); padding: 2px 8px; border-radius: 20px; font-family: var(--mono); }
+.vbtns { margin-left: auto; display: flex; gap: 5px; }
+.vbtn { width: 28px; height: 28px; border-radius: var(--r-sm); background: var(--ink3); border: 1px solid var(--rule); color: var(--dust1); font-size: 13px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .12s; }
+.vbtn:active { background: var(--ink4); }
+.vbtn.on { background: var(--gold-d); color: var(--gold); border-color: var(--gold); }
+
+/* ══ TASK LIST ══ */
+.tlist { padding: 2px 0 8px; }
+
+.ghdr { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dust2); cursor: pointer; user-select: none; }
+.gdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.gcnt { margin-left: auto; background: var(--ink3); padding: 1px 7px; border-radius: 20px; }
+.gchev { font-size: 9px; transition: transform .2s; }
+.gchev.cl { transform: rotate(-90deg); }
+
+/* TASK ROW */
+.trow {
+  display: flex; align-items: flex-start; padding: 10px 14px; gap: 10px;
+  cursor: pointer; transition: background .1s; border-bottom: 1px solid var(--rule);
+  min-height: 48px; position: relative; user-select: none;
+}
+.trow:active { background: var(--ink2); }
+.trow.sel { background: var(--ink2); }
+.trow.done { opacity: .4; }
+.trow.done .tname { text-decoration: line-through; color: var(--dust2); }
+.trow.starred::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); border-radius: 0 1px 1px 0; }
+.trow.blocked { opacity: .5; }
+.trow.blocked .tname::after { content: ' 🔒'; font-size: 11px; }
+
+/* depth indent lines */
+.trow[data-depth="1"] { padding-left: 30px; }
+.trow[data-depth="2"] { padding-left: 46px; }
+.trow[data-depth="3"] { padding-left: 62px; }
+.trow[data-depth="1"]::after { content:''; position:absolute; left:18px; top:0; bottom:0; width:1px; background:var(--rule2); }
+.trow[data-depth="2"]::after { content:''; position:absolute; left:34px; top:0; bottom:0; width:1px; background:var(--rule2); }
+.trow[data-depth="3"]::after { content:''; position:absolute; left:50px; top:0; bottom:0; width:1px; background:var(--rule2); }
+
+/* CHECKBOX */
+.tck { width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid var(--rule2); flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all .15s; background: transparent; cursor: pointer; }
+.tck:active { border-color: var(--grn); background: var(--grn-d); transform: scale(.88); }
+.tck.done { border-color: var(--grn); background: var(--grn); }
+.tck.done::after { content: '✓'; color: var(--ink); font-size: 11px; font-weight: 700; }
+.tck.proj { border-radius: 4px; }
+.tck.proj.done { background: var(--gold); border-color: var(--gold); }
+
+/* BODY */
+.tbody { flex: 1; min-width: 0; }
+.tname { font-size: 14px; line-height: 1.4; color: var(--dust); word-break: break-word; font-weight: 400; }
+.tname.proj { font-weight: 600; font-family: var(--serif); font-style: italic; font-size: 15px; }
+.tname.folder { font-weight: 700; font-size: 13px; letter-spacing: .4px; text-transform: uppercase; color: var(--dust2); }
+.tchips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.chip { font-size: 10px; font-family: var(--mono); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.chip.ctx  { background: var(--pur-d); color: var(--pur); }
+.chip.due  { background: var(--gold-d); color: var(--gold); }
+.chip.over { background: var(--red-d); color: var(--red); }
+.chip.fw   { background: var(--org-d); color: var(--org); }
+.chip.fs   { background: var(--pur-d); color: var(--pur); }
+.chip.fd   { background: var(--teal-d); color: var(--teal); }
+.chip.pt   { background: var(--blue-d); color: var(--blue); }
+.chip.seq  { background: var(--ink4); color: var(--dust2); }
+.chip.rc   { background: var(--grn-d); color: var(--grn); }
+.chip.eff  { background: var(--ink4); color: var(--dust1); }
+.chip.dep  { background: var(--red-d); color: var(--red); }
+.chip.tmpl { background: var(--gold-d); color: var(--gold); }
+.chip.star { background: var(--gold-d); color: var(--gold); }
+
+/* PRIORITY BAR + SCORE */
+.tright { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.tprio { width: 4px; height: 28px; border-radius: 2px; flex-shrink: 0; }
+.tscore { font-size: 9px; font-family: var(--mono); color: var(--dust3); }
+.progress-bar { height: 2px; background: var(--rule); border-radius: 1px; margin-top: 4px; overflow: hidden; min-width: 40px; }
+.progress-fill { height: 100%; background: var(--grn); border-radius: 1px; transition: width .3s; }
+
+/* ══ BOTTOM NAV ══ */
+.bot-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav) + var(--safe)); background: var(--ink1); border-top: 1px solid var(--rule); display: flex; align-items: flex-start; padding-top: 8px; z-index: 100; }
+.ni { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 2px 0; position: relative; }
+.ni-ico { font-size: 20px; line-height: 1; }
+.ni-lbl { font-size: 9px; font-weight: 700; letter-spacing: .5px; color: var(--dust2); text-transform: uppercase; transition: color .12s; }
+.ni.on .ni-lbl { color: var(--gold); }
+.ni.on .ni-ico { filter: drop-shadow(0 0 5px rgba(232,201,109,.5)); }
+.nbadge { position: absolute; top: -2px; right: calc(50% - 20px); background: var(--red); color: #fff; font-size: 8px; font-weight: 700; min-width: 14px; height: 14px; border-radius: 7px; display: flex; align-items: center; justify-content: center; padding: 0 3px; font-family: var(--mono); }
+.ncap-wrap { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ncap { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #c9a940, #f0d970); box-shadow: 0 4px 18px rgba(232,201,109,.35); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--ink); cursor: pointer; transform: translateY(-10px); transition: transform .15s, box-shadow .15s; }
+.ncap:active { transform: translateY(-7px) scale(.92); box-shadow: 0 2px 8px rgba(232,201,109,.2); }
+
+/* ══ OVERLAY + SHEET ══ */
+.ovl { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(8px); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s; }
+.ovl.on { opacity: 1; pointer-events: all; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--ink1); border-radius: 18px 18px 0 0; border-top: 1px solid var(--rule2); z-index: 201; transform: translateY(102%); transition: transform .3s cubic-bezier(.4,0,.2,1); max-height: 92vh; display: flex; flex-direction: column; }
+.sheet.on { transform: translateY(0); }
+@media(min-width:680px) { .sheet, .ai-panel { left: 224px; max-width: 480px; border-radius: var(--r-lg) var(--r-lg) 0 0; } .ovl { left: 224px; } }
+.shandle { width: 36px; height: 3px; border-radius: 2px; background: var(--rule2); margin: 10px auto 0; flex-shrink: 0; }
+.stitle { font-family: var(--serif); font-size: 18px; font-style: italic; padding: 12px 14px 11px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
+.sclose { margin-left: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--ink3); border: none; color: var(--dust1); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; }
+.sclose:active { background: var(--ink4); }
+.sbody { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px; padding-bottom: calc(20px + var(--safe)); }
+.sbody::-webkit-scrollbar { display: none; }
+
+/* ══ FORM FIELDS ══ */
+.fld { margin-bottom: 13px; }
+.fld label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dust2); margin-bottom: 5px; font-family: var(--mono); }
+.fld input, .fld textarea, .fld select {
+  width: 100%; background: var(--ink3); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  color: var(--dust); font-family: var(--sans); font-size: 14px;
+  padding: 10px 12px; outline: none; transition: border-color .12s; -webkit-appearance: none;
+}
+.fld input:focus, .fld textarea:focus, .fld select:focus { border-color: var(--gold); }
+.fld textarea { resize: none; height: 80px; line-height: 1.5; }
+.fld select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M5 6L0 0h10z' fill='%236b7690'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; }
+.fld select option { background: var(--ink2); }
+.fld-row { display: flex; gap: 10px; }
+.fld-row .fld { flex: 1; }
+
+/* Slider */
+.fld input[type=range] { padding: 4px 0; background: none; border: none; -webkit-appearance: none; }
+.fld input[type=range]::-webkit-slider-runnable-track { height: 4px; background: var(--rule2); border-radius: 2px; }
+.fld input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); margin-top: -7px; cursor: pointer; }
+.range-val { font-family: var(--mono); font-size: 13px; color: var(--gold); text-align: right; margin-top: -10px; margin-bottom: 6px; }
+
+/* Segments */
+.seg { display: flex; gap: 5px; flex-wrap: wrap; }
+.seg-b { flex: 1; min-width: 60px; padding: 8px 4px; border-radius: var(--r-sm); border: 1px solid var(--rule); background: var(--ink3); color: var(--dust1); font-size: 11px; font-family: var(--mono); cursor: pointer; text-align: center; transition: all .12s; font-weight: 500; }
+.seg-b:active { background: var(--ink4); }
+.seg-b.on.p1 { background: var(--red-d); border-color: var(--red); color: var(--red); }
+.seg-b.on.p2 { background: var(--org-d); border-color: var(--org); color: var(--org); }
+.seg-b.on.p3 { background: var(--gold-d); border-color: var(--gold); color: var(--gold); }
+.seg-b.on.p4 { background: var(--blue-d); border-color: var(--blue); color: var(--blue); }
+.seg-b.on.p5 { background: var(--ink4); border-color: var(--rule2); color: var(--dust1); }
+
+/* Flag chips */
+.flags { display: flex; gap: 6px; flex-wrap: wrap; }
+.flag-b { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--rule); background: var(--ink3); color: var(--dust1); font-size: 12px; font-family: var(--mono); cursor: pointer; transition: all .12s; }
+.flag-b:active { background: var(--ink4); }
+.flag-b.on { background: var(--gold-d); border-color: var(--gold); color: var(--gold); }
+
+/* Buttons */
+.btn-primary { width: 100%; padding: 13px; background: linear-gradient(135deg, #c9a940, #e8c96d); border: none; border-radius: var(--r); color: var(--ink); font-family: var(--sans); font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s; margin-top: 6px; box-shadow: 0 3px 14px rgba(232,201,109,.2); }
+.btn-primary:active { opacity: .82; }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+.btn-secondary { width: 100%; padding: 10px; background: var(--ink3); border: 1px dashed var(--rule2); border-radius: var(--r); color: var(--dust1); font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: all .15s; }
+.btn-secondary:active { border-color: var(--gold); color: var(--gold); }
+.btn-danger { width: 100%; padding: 10px; background: var(--red-d); border: 1px solid var(--red); border-radius: var(--r); color: var(--red); font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: opacity .15s; }
+.btn-danger:active { opacity: .75; }
+
+/* Inline checkbox toggle */
+.toggle-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.toggle-row:last-child { border-bottom: none; }
+.toggle-lbl { flex: 1; font-size: 13px; color: var(--dust1); }
+.toggle { width: 38px; height: 22px; background: var(--ink4); border-radius: 11px; position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
+.toggle.on { background: var(--gold); }
+.toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--dust); top: 3px; left: 3px; transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.toggle.on::after { left: 19px; background: var(--ink); }
+
+/* ══ CAPTURE SHEET ══ */
+.cap-in { width: 100%; background: none; border: none; color: var(--dust); font-family: var(--serif); font-style: italic; font-size: 20px; outline: none; line-height: 1.4; min-height: 56px; }
+.cap-in::placeholder { color: var(--dust3); }
+.cap-opts { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+.cap-opt { padding: 6px 11px; border-radius: 20px; border: 1px solid var(--rule); background: var(--ink3); color: var(--dust1); font-size: 11px; font-family: var(--mono); cursor: pointer; -webkit-appearance: none; outline: none; transition: all .12s; }
+.cap-opt:focus { border-color: var(--gold); color: var(--gold); }
+
+/* ══ AI PANEL ══ */
+.ai-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--ink1); border-radius: 18px 18px 0 0; border-top: 1px solid var(--rule2); z-index: 202; transform: translateY(102%); transition: transform .3s cubic-bezier(.4,0,.2,1); height: 76vh; display: flex; flex-direction: column; }
+.ai-panel.on { transform: translateY(0); }
+.ai-hdr { padding: 10px 14px 12px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ai-av { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(135deg, var(--blue), var(--pur)); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.ai-name { font-family: var(--serif); font-size: 15px; font-style: italic; }
+.ai-sub { font-size: 10px; color: var(--dust2); font-family: var(--mono); }
+.ai-msgs { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ai-msgs::-webkit-scrollbar { display: none; }
+.msg { max-width: 88%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.6; }
+.msg.u { align-self: flex-end; background: var(--blue); color: #fff; border-bottom-right-radius: 4px; }
+.msg.a { align-self: flex-start; background: var(--ink3); color: var(--dust); border-bottom-left-radius: 4px; }
+.msg.a.ld { color: var(--dust2); font-style: italic; font-family: var(--mono); font-size: 12px; }
+.ai-qs { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px 0; }
+.ai-q { padding: 5px 11px; border-radius: 20px; border: 1px solid var(--rule2); background: var(--ink3); color: var(--dust1); font-size: 11px; font-family: var(--mono); cursor: pointer; white-space: nowrap; transition: all .12s; }
+.ai-q:active { border-color: var(--gold); color: var(--gold); }
+.ai-row { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rule); padding-bottom: calc(10px + var(--safe)); flex-shrink: 0; }
+.ai-inp { flex: 1; background: var(--ink3); border: 1px solid var(--rule); border-radius: var(--r-sm); color: var(--dust); font-family: var(--sans); font-size: 13px; padding: 9px 12px; outline: none; }
+.ai-inp:focus { border-color: var(--gold); }
+.ai-send { width: 36px; height: 36px; border-radius: var(--r-sm); background: linear-gradient(135deg, #c9a940, #e8c96d); border: none; color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity .15s; }
+.ai-send:active { opacity: .8; }
+
+/* ══ SETUP SCREEN ══ */
+.setup { padding: 24px 20px; }
+.setup h2 { font-family: var(--serif); font-style: italic; font-size: 26px; margin-bottom: 8px; }
+.setup p { font-size: 13px; color: var(--dust1); line-height: 1.6; margin-bottom: 14px; }
+.setup-card { background: var(--ink2); border: 1px solid var(--rule2); border-radius: var(--r-lg); padding: 16px; margin-bottom: 14px; }
+.setup-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .8px; color: var(--gold); margin-bottom: 10px; text-transform: uppercase; }
+.setup-card p { font-size: 12px; color: var(--dust1); line-height: 1.6; margin-bottom: 10px; }
+.setup-inp { width: 100%; background: var(--ink3); border: 1px solid var(--rule); border-radius: var(--r-sm); color: var(--dust); font-family: var(--mono); font-size: 13px; padding: 10px 12px; outline: none; margin-bottom: 10px; }
+.setup-inp:focus { border-color: var(--gold); }
+.setup-note { font-size: 11px; color: var(--dust2); line-height: 1.5; }
+.setup-steps { list-style: none; counter-reset: step; }
+.setup-steps li { counter-increment: step; padding: 6px 0 6px 28px; position: relative; font-size: 12px; color: var(--dust1); line-height: 1.5; border-bottom: 1px solid var(--rule); }
+.setup-steps li:last-child { border-bottom: none; }
+.setup-steps li::before { content: counter(step); position: absolute; left: 0; top: 6px; width: 18px; height: 18px; border-radius: 50%; background: var(--ink4); color: var(--gold); font-family: var(--mono); font-size: 10px; display: flex; align-items: center; justify-content: center; }
+.setup-steps code { background: var(--ink4); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; color: var(--teal); }
+
+/* ══ EMPTY STATE ══ */
+.empty { text-align: center; padding: 50px 20px; }
+.empty-ico { font-size: 44px; margin-bottom: 14px; opacity: .25; }
+.empty-t { font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--dust1); margin-bottom: 6px; }
+.empty-s { font-size: 13px; color: var(--dust2); line-height: 1.6; }
+
+/* ══ TOAST ══ */
+.toast { position: fixed; bottom: calc(var(--nav) + var(--safe) + 12px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink4); border: 1px solid var(--rule2); border-radius: var(--r); padding: 9px 16px; font-size: 12px; color: var(--dust); font-family: var(--mono); white-space: nowrap; opacity: 0; pointer-events: none; transition: all .22s; z-index: 500; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok { background: var(--grn-d); border-color: var(--grn); color: var(--grn); }
+.toast.err { background: var(--red-d); border-color: var(--red); color: var(--red); }
+@media(min-width:680px) { .toast { bottom: 20px; } .ai-panel { left: 224px; max-width: 480px; border-radius: var(--r-lg) var(--r-lg) 0 0; } }
+
+/* ══ MORE SHEET ITEMS ══ */
+.more-it { display: flex; align-items: center; gap: 9px; padding: 12px 6px; border-bottom: 1px solid var(--rule); cursor: pointer; font-size: 14px; color: var(--dust1); transition: color .12s; }
+.more-it:last-child { border-bottom: none; }
+.more-it:active { color: var(--gold); }
+.more-it .mi-badge { margin-left: auto; background: var(--ink4); color: var(--dust2); font-size: 10px; font-family: var(--mono); padding: 1px 7px; border-radius: 20px; }
+
+/* ══ NOTION SETUP BANNER ══ */
+.notion-banner { margin: 10px 14px; background: var(--gold-d); border: 1px solid var(--gold); border-radius: var(--r); padding: 12px 14px; }
+.notion-banner p { font-size: 12px; color: var(--dust1); line-height: 1.6; }
+.notion-banner strong { color: var(--gold); }
+
+/* ══ SECTION DIVIDER ══ */
+.sec-div { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dust3); padding: 10px 14px 3px; font-family: var(--mono); }
+
+/* ══ WEEKLY REVIEW ══ */
+.review-card { background: var(--ink2); border: 1px solid var(--rule2); border-radius: var(--r-lg); padding: 14px; margin: 10px 14px; }
+.review-card h3 { font-family: var(--serif); font-style: italic; font-size: 16px; margin-bottom: 8px; color: var(--gold); }
+.review-card p { font-size: 13px; color: var(--dust1); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">FlowState</div>
+  <div class="hdr-view" id="hdr-view">Inbox</div>
+  <div class="hdr-btn" id="sync-btn" title="Sync with Notion" onclick="syncNotion()">↻</div>
+  <div class="hdr-btn gold" onclick="openAI()" title="AI Assistant">✦</div>
+</div>
+<div class="sstrip" id="sstrip"><div class="sdot" id="sdot"></div><span id="smsg"></span></div>
+
+<div class="layout">
+
+<!-- SIDEBAR (desktop) -->
+<aside class="sidebar" id="sidebar">
+  <button class="sb-cap" onclick="openCapture()">＋ Capture <kbd style="margin-left:auto;font-size:9px;opacity:.6;font-family:var(--mono)">⌘K</kbd></button>
+  <div class="sb-lbl">Views</div>
+  <div class="sb-it on" id="si-inbox"   onclick="goView('inbox')">📥 Inbox <span class="sb-badge" id="sbd-inbox">0</span></div>
+  <div class="sb-it"     id="si-next"   onclick="goView('next')">⚡ Next Actions <span class="sb-badge" id="sbd-next">0</span></div>
+  <div class="sb-it"     id="si-starred" onclick="goView('starred')">⭐ Starred <span class="sb-badge" id="sbd-starred">0</span></div>
+  <div class="sb-it"     id="si-projects" onclick="goView('projects')">📁 Projects <span class="sb-badge" id="sbd-projects">0</span></div>
+  <div class="sb-it"     id="si-context" onclick="goView('context')">🏷 By Context</div>
+  <div class="sb-it"     id="si-due"    onclick="goView('due')">📅 By Due Date <span class="sb-badge" id="sbd-due">0</span></div>
+  <div class="sb-it"     id="si-waiting" onclick="goView('waiting')">⏳ Waiting For <span class="sb-badge" id="sbd-waiting">0</span></div>
+  <div class="sb-it"     id="si-someday" onclick="goView('someday')">🌙 Someday/Maybe <span class="sb-badge" id="sbd-someday">0</span></div>
+  <div class="sb-it"     id="si-outline" onclick="goView('outline')">🌳 All Tasks</div>
+  <div class="sb-it"     id="si-completed" onclick="goView('completed')">✅ Completed</div>
+  <hr class="sb-divider">
+  <div class="sb-lbl">Contexts</div>
+  <div id="sb-contexts"></div>
+  <hr class="sb-divider">
+  <div class="sb-lbl">Templates</div>
+  <div class="sb-it" id="si-templates" onclick="goView('templates')">📋 Annual Templates <span class="sb-badge" id="sbd-templates">0</span></div>
+  <div style="flex:1"></div>
+  <button class="sb-ai" onclick="openAI()"><div class="ai-pip">✦</div> AI Assistant</button>
+</aside>
+
+<!-- MAIN -->
+<div class="main" id="main">
+  <div class="vhdr">
+    <div class="vtitle" id="vtitle">Inbox</div>
+    <div class="vcnt" id="vcnt">0 items</div>
+    <div class="vbtns">
+      <div class="vbtn" id="btn-done" title="Show completed" onclick="toggleDone()">✓</div>
+      <div class="vbtn" id="btn-sort" title="Sort by priority score" onclick="toggleSort()">↕</div>
+    </div>
+  </div>
+  <div class="tlist" id="tlist"></div>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bot-nav">
+  <div class="ni on" id="ni-inbox" onclick="goView('inbox')"><div class="ni-ico">📥</div><div class="ni-lbl">Inbox</div><div class="nbadge" id="nb-inbox" style="display:none">0</div></div>
+  <div class="ni" id="ni-next" onclick="goView('next')"><div class="ni-ico">⚡</div><div class="ni-lbl">Next</div><div class="nbadge" id="nb-next" style="display:none">0</div></div>
+  <div class="ncap-wrap"><div class="ncap" onclick="openCapture()">＋</div><div class="ni-lbl" style="color:var(--dust2)">Capture</div></div>
+  <div class="ni" id="ni-projects" onclick="goView('projects')"><div class="ni-ico">📁</div><div class="ni-lbl">Projects</div></div>
+  <div class="ni" id="ni-more" onclick="openMore()"><div class="ni-ico">⋯</div><div class="ni-lbl">More</div></div>
+</nav>
+</div>
+
+<!-- ═══════ DETAIL SHEET ═══════ -->
+<div class="ovl" id="d-ovl" onclick="closeDetail()"></div>
+<div class="sheet" id="d-sheet">
+  <div class="shandle"></div>
+  <div class="stitle"><span id="d-type-lbl">Task</span><button class="sclose" onclick="closeDetail()">×</button></div>
+  <div class="sbody">
+    <div class="fld"><label>Title</label><input type="text" id="d-title" placeholder="Task name..."></div>
+    <div class="fld"><label>Notes</label><textarea id="d-notes" placeholder="Notes, links, details..."></textarea></div>
+    <div class="fld-row">
+      <div class="fld"><label>Type</label>
+        <select id="d-type"><option>Task</option><option>Project</option><option>Folder</option></select>
+      </div>
+      <div class="fld"><label>Context</label>
+        <select id="d-ctx"><option value="">No context</option><option>@Computer</option><option>@Phone</option><option>@Home</option><option>@Errands</option><option>@Office</option><option>@Anywhere</option></select>
+      </div>
+    </div>
+    <div class="fld"><label>Priority</label>
+      <div class="seg">
+        <button class="seg-b p1" id="dp1" onclick="setPrio('1 - High')">🔴 High</button>
+        <button class="seg-b p2" id="dp2" onclick="setPrio('2 - Medium')">🟠 Med</button>
+        <button class="seg-b p3" id="dp3" onclick="setPrio('3 - Low')">🟡 Low</button>
+        <button class="seg-b p4" id="dp4" onclick="setPrio('4 - Low')">🔵 Defer</button>
+        <button class="seg-b p5" id="dp5" onclick="setPrio('4 - None')">— None</button>
+      </div>
+    </div>
+    <div class="fld"><label>Importance (0–100)</label><input type="range" id="d-imp" min="0" max="100" value="50" oninput="document.getElementById('d-imp-val').textContent=this.value"><div class="range-val" id="d-imp-val">50</div></div>
+    <div class="fld"><label>Urgency (0–100)</label><input type="range" id="d-urg" min="0" max="100" value="50" oninput="document.getElementById('d-urg-val').textContent=this.value"><div class="range-val" id="d-urg-val">50</div></div>
+    <div class="fld"><label>Flag</label>
+      <div class="flags">
+        <button class="flag-b" id="dfw" onclick="toggleFlag('Waiting For')">⏳ Waiting</button>
+        <button class="flag-b" id="dfs" onclick="toggleFlag('Someday Maybe')">🌙 Someday</button>
+        <button class="flag-b" id="dfd" onclick="toggleFlag('Delegated')">👤 Delegated</button>
+      </div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Due Date</label><input type="date" id="d-due"></div>
+      <div class="fld"><label>Start Date</label><input type="date" id="d-start"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Effort</label>
+        <select id="d-effort"><option value="">—</option><option>5min</option><option>15min</option><option>30min</option><option>1hr</option><option>2hr</option><option>4hr</option><option>Full Day</option></select>
+      </div>
+      <div class="fld"><label>Energy</label>
+        <select id="d-energy"><option value="">—</option><option>Low</option><option>Medium</option><option>High</option></select>
+      </div>
+    </div>
+    <div class="fld"><label>Recurrence</label>
+      <select id="d-recur"><option value="">None</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Yearly</option></select>
+    </div>
+    <div class="fld"><label>Depends on (Task IDs, comma-separated)</label><input type="text" id="d-deps" placeholder="Leave blank if no dependencies"></div>
+    <div style="border:1px solid var(--rule);border-radius:var(--r);padding:10px;margin-bottom:13px;">
+      <div class="toggle-row"><span class="toggle-lbl">Sequential subtasks (complete in order)</span><div class="toggle" id="t-seq" onclick="this.classList.toggle('on')"></div></div>
+      <div class="toggle-row"><span class="toggle-lbl">⭐ Starred / Focus</span><div class="toggle" id="t-star" onclick="this.classList.toggle('on')"></div></div>
+      <div class="toggle-row"><span class="toggle-lbl">📋 Annual template (auto-renews next year)</span><div class="toggle" id="t-tmpl" onclick="this.classList.toggle('on');toggleTemplateSection()"></div></div>
+    </div>
+    <div id="tmpl-section" style="display:none">
+      <div class="fld"><label>Template ID (group name e.g. "tax-filing")</label><input type="text" id="d-tmplid" placeholder="e.g. annual-tax-filing"></div>
+      <div class="notion-banner"><p>When all tasks in this template group are completed, FlowState will automatically clone the entire project with dates shifted by +1 year.</p></div>
+    </div>
+    <button class="btn-primary" id="d-save-btn" onclick="saveDetail()">💾 Save Changes</button>
+    <button class="btn-secondary" onclick="addSubHere()">＋ Add subtask here</button>
+    <button class="btn-secondary" onclick="duplicateTask()">⧉ Duplicate task</button>
+    <button class="btn-danger" onclick="deleteTask()">🗑 Delete task</button>
+  </div>
+</div>
+
+<!-- ═══════ CAPTURE SHEET ═══════ -->
+<div class="ovl" id="c-ovl" onclick="closeCapture()"></div>
+<div class="sheet" id="c-sheet">
+  <div class="shandle"></div>
+  <div class="stitle">Quick Capture<button class="sclose" onclick="closeCapture()">×</button></div>
+  <div class="sbody">
+    <input class="cap-in" id="cap-in" placeholder="What needs to be done?" autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveCapture()}">
+    <div class="cap-opts">
+      <select class="cap-opt" id="cap-type"><option>Task</option><option>Project</option><option>Folder</option></select>
+      <select class="cap-opt" id="cap-ctx"><option value="">@ Context</option><option>@Computer</option><option>@Phone</option><option>@Home</option><option>@Errands</option><option>@Office</option><option>@Anywhere</option></select>
+      <select class="cap-opt" id="cap-prio"><option value="4 - None">Priority</option><option value="1 - High">🔴 High</option><option value="2 - Medium">🟠 Medium</option><option value="3 - Low">🟡 Low</option></select>
+      <select class="cap-opt" id="cap-flag"><option value="">No flag</option><option value="Waiting For">⏳ Waiting</option><option value="Someday Maybe">🌙 Someday</option><option value="Delegated">👤 Delegated</option></select>
+      <input type="date" class="cap-opt" id="cap-due" style="font-size:11px">
+      <select class="cap-opt" id="cap-parent"><option value="">📥 Inbox (top level)</option></select>
+    </div>
+    <button class="btn-primary" id="cap-btn" onclick="saveCapture()">Add Task ＋</button>
+  </div>
+</div>
+
+<!-- ═══════ MORE SHEET (mobile) ═══════ -->
+<div class="ovl" id="m-ovl" onclick="closeMore()"></div>
+<div class="sheet" id="m-sheet">
+  <div class="shandle"></div>
+  <div class="stitle">More<button class="sclose" onclick="closeMore()">×</button></div>
+  <div class="sbody" style="padding:8px 14px">
+    <div class="more-it" onclick="goView('starred');closeMore()">⭐ Starred <span class="mi-badge" id="mb-starred">0</span></div>
+    <div class="more-it" onclick="goView('context');closeMore()">🏷 By Context</div>
+    <div class="more-it" onclick="goView('due');closeMore()">📅 By Due Date <span class="mi-badge" id="mb-due">0</span></div>
+    <div class="more-it" onclick="goView('waiting');closeMore()">⏳ Waiting For <span class="mi-badge" id="mb-waiting">0</span></div>
+    <div class="more-it" onclick="goView('someday');closeMore()">🌙 Someday/Maybe <span class="mi-badge" id="mb-someday">0</span></div>
+    <div class="more-it" onclick="goView('outline');closeMore()">🌳 All Tasks</div>
+    <div class="more-it" onclick="goView('templates');closeMore()">📋 Annual Templates <span class="mi-badge" id="mb-templates">0</span></div>
+    <div class="more-it" onclick="goView('completed');closeMore()">✅ Completed</div>
+    <div class="more-it" onclick="openSetup();closeMore()">⚙ Notion Settings</div>
+    <div class="more-it" onclick="openWeeklyReview();closeMore()">📊 Weekly Review</div>
+  </div>
+</div>
+
+<!-- ═══════ SETUP SHEET ═══════ -->
+<div class="ovl" id="setup-ovl" onclick="closeSetup()"></div>
+<div class="sheet" id="setup-sheet" style="max-height:95vh">
+  <div class="shandle"></div>
+  <div class="stitle">Notion Setup<button class="sclose" onclick="closeSetup()">×</button></div>
+  <div class="sbody">
+    <div class="setup-card">
+      <h3>Your Notion API Key</h3>
+      <p>Create an integration at <strong style="color:var(--teal)">notion.so/my-integrations</strong> and paste the key below. It stays in your browser only — never sent anywhere except Notion's API.</p>
+      <input class="setup-inp" type="password" id="setup-key" placeholder="secret_xxxxxxxxxxxxxxxxxxxx">
+      <p class="setup-note">Database ID: <code style="color:var(--teal);font-family:var(--mono);font-size:11px">4410a8c2-f754-4fec-a240-05c154aba9f6</code></p>
+    </div>
+    <div class="setup-card">
+      <h3>How to get your API key</h3>
+      <ol class="setup-steps">
+        <li>Go to <code>notion.so/my-integrations</code></li>
+        <li>Click <code>New integration</code>, name it <code>FlowState</code></li>
+        <li>Copy the <code>Internal Integration Token</code></li>
+        <li>Paste it above and click Save</li>
+        <li>In Notion, open <code>FlowState GTD</code> → ··· → <code>Add connections</code> → select <code>FlowState</code></li>
+      </ol>
+    </div>
+    <button class="btn-primary" onclick="saveSetup()">Save & Test Connection</button>
+    <div id="setup-result" style="margin-top:12px;font-size:12px;font-family:var(--mono);color:var(--dust2)"></div>
+  </div>
+</div>
+
+<!-- ═══════ AI SHEET ═══════ -->
+<div class="ovl" id="ai-ovl" onclick="closeAI()"></div>
+<div class="ai-panel" id="ai-panel">
+  <div class="shandle" style="background:linear-gradient(90deg,var(--blue),var(--pur));height:3px;width:50px;border-radius:2px;margin:8px auto 0"></div>
+  <div class="ai-hdr">
+    <div class="ai-av">✦</div>
+    <div><div class="ai-name">FlowState AI</div><div class="ai-sub">Powered by Claude · reads your live tasks</div></div>
+    <button class="sclose" onclick="closeAI()">×</button>
+  </div>
+  <div class="ai-msgs" id="ai-msgs">
+    <div class="msg a">Hi! I can read your full task system and help you:<br><br>• Process your Inbox<br>• Run a GTD weekly review<br>• Find missing next actions<br>• Suggest what to work on given your energy/context<br>• Break down projects into sequential steps<br>• Set up annual template projects<br><br>What would you like to work on?</div>
+  </div>
+  <div class="ai-qs">
+    <button class="ai-q" onclick="aiQ('Process my Inbox — what should I do with each item?')">Process Inbox</button>
+    <button class="ai-q" onclick="aiQ('Run a full GTD weekly review of my system')">Weekly Review</button>
+    <button class="ai-q" onclick="aiQ('What should I work on right now? I have high energy and am at my computer.')">What now?</button>
+    <button class="ai-q" onclick="aiQ('Which projects are missing next actions?')">Missing NAs</button>
+    <button class="ai-q" onclick="aiQ('Check my annual templates — are any due for renewal this year?')">Check templates</button>
+  </div>
+  <div class="ai-row">
+    <input class="ai-inp" id="ai-inp" placeholder="Ask anything about your tasks..." onkeydown="if(event.key==='Enter')aiSend()">
+    <button class="ai-send" onclick="aiSend()">↑</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════
+//  CONFIG — Database already set up in Notion
+// ════════════════════════════════════════════
+const DB_ID = '4410a8c2-f754-4fec-a240-05c154aba9f6';
+const NOTION_API = 'https://api.notion.com/v1';
+const NOTION_VER = '2022-06-28';
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let tasks     = JSON.parse(localStorage.getItem('fs4_tasks') || '[]');
+let apiKey    = localStorage.getItem('fs4_key') || '';
+let view      = 'inbox';
+let selId     = null;
+let selPrio   = '4 - None';
+let selFlag   = '';
+let showDone  = false;
+let sortByScore = false;
+let syncing   = false;
+let aiHistory = [];
+let ctxFilter = null;
+
+const VIEWS = { inbox:'Inbox', next:'Next Actions', starred:'Starred', projects:'Projects', context:'By Context', due:'By Due Date', waiting:'Waiting For', someday:'Someday / Maybe', outline:'All Tasks', completed:'Completed', templates:'Annual Templates' };
+const PRIO_COL = { '1 - High':'var(--red)', '2 - Medium':'var(--org)', '3 - Low':'var(--gold)', '4 - Low':'var(--blue)', '4 - None':'var(--dust3)' };
+const CTX_COLORS = { '@Computer':'#5b87f5', '@Phone':'#3ecb8b', '@Home':'#a07cf5', '@Errands':'#f0933a', '@Office':'#3acce0', '@Anywhere':'#b0b8cc' };
+
+function save() { localStorage.setItem('fs4_tasks', JSON.stringify(tasks)); }
+function uid()  { return 'fs4_' + Date.now() + '_' + Math.random().toString(36).slice(2,5); }
+function today(){ return new Date().toISOString().split('T')[0]; }
+function score(t){ return ((t.importance||50) * 0.6 + (t.urgency||50) * 0.4); }
+
+// ════════════════════════════════════════════
+//  NOTION REST API
+// ════════════════════════════════════════════
+async function notionReq(method, path, body) {
+  if (!apiKey) { toast('Add your Notion API key in Settings (⋯ → Notion Settings)', 'err'); throw new Error('No API key'); }
+  const r = await fetch(NOTION_API + path, {
+    method, headers: {
+      'Authorization': 'Bearer ' + apiKey,
+      'Notion-Version': NOTION_VER,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ message: r.statusText }));
+    throw new Error(err.message || r.statusText);
+  }
+  return r.json();
+}
+
+function notionProps(t) {
+  // Convert local task → Notion page properties
+  const props = {
+    'Name':      { title: [{ text: { content: t.title || 'Untitled' } }] },
+    'Type':      { select: t.type ? { name: t.type } : null },
+    'Priority':  { select: t.priority ? { name: t.priority } : null },
+    'Context':   { select: t.context ? { name: t.context } : null },
+    'Flag':      { select: t.flag ? { name: t.flag } : null },
+    'Status':    { select: { name: t.done ? 'Done' : (t.flag === 'Waiting For' ? 'Waiting For' : t.flag === 'Someday Maybe' ? 'Someday Maybe' : 'Inbox') } },
+    'Done':      { checkbox: !!t.done },
+    'Sequential':{ checkbox: !!t.sequential },
+    'Starred':   { checkbox: !!t.starred },
+    'Notes':     { rich_text: t.notes ? [{ text: { content: t.notes.slice(0,2000) } }] : [] },
+    'ParentID':  { rich_text: t.parentId ? [{ text: { content: t.parentId } }] : [] },
+    'TaskID':    { rich_text: [{ text: { content: t.id } }] },
+    'DependsOn': { rich_text: t.dependsOn ? [{ text: { content: t.dependsOn } }] : [] },
+    'TemplateID':{ rich_text: t.templateId ? [{ text: { content: t.templateId } }] : [] },
+    'Effort':    { select: t.effort ? { name: t.effort } : null },
+    'Energy':    { select: t.energy ? { name: t.energy } : null },
+    'Importance':{ number: t.importance ?? null },
+    'Urgency':   { number: t.urgency ?? null },
+    'SortOrder': { number: t.sortOrder ?? null },
+  };
+  if (t.recur) props['Recurrence'] = { select: { name: t.recur } };
+  if (t.due)   props['Due Date'] = { date: { start: t.due } };
+  if (t.start) props['Start Date'] = { date: { start: t.start } };
+  if (t.done)  props['CompletedAt'] = { date: { start: today() } };
+  // Remove null selects
+  Object.keys(props).forEach(k => { if (props[k]?.select === null) props[k] = { select: null }; });
+  return props;
+}
+
+function parseNotionTask(page) {
+  const p = page.properties;
+  const gText = (prop) => prop?.rich_text?.map(r => r.plain_text).join('') || '';
+  const gSel  = (prop) => prop?.select?.name || '';
+  const gDate = (prop) => prop?.date?.start?.split('T')[0] || '';
+  return {
+    id:         gText(p['TaskID']) || page.id,
+    notion_id:  page.id,
+    title:      p['Name']?.title?.map(t => t.plain_text).join('') || 'Untitled',
+    type:       gSel(p['Type']) || 'Task',
+    priority:   gSel(p['Priority']) || '4 - None',
+    context:    gSel(p['Context']) || '',
+    flag:       gSel(p['Flag']) || '',
+    status:     gSel(p['Status']) || 'Inbox',
+    done:       p['Done']?.checkbox || false,
+    sequential: p['Sequential']?.checkbox || false,
+    starred:    p['Starred']?.checkbox || false,
+    notes:      gText(p['Notes']),
+    parentId:   gText(p['ParentID']),
+    dependsOn:  gText(p['DependsOn']),
+    templateId: gText(p['TemplateID']),
+    effort:     gSel(p['Effort']),
+    energy:     gSel(p['Energy']),
+    importance: p['Importance']?.number ?? 50,
+    urgency:    p['Urgency']?.number ?? 50,
+    sortOrder:  p['SortOrder']?.number ?? 0,
+    recur:      gSel(p['Recurrence']),
+    due:        gDate(p['Due Date']),
+    start:      gDate(p['Start Date']),
+    completedAt:gDate(p['CompletedAt']),
+  };
+}
+
+async function fetchAllTasks() {
+  let all = [], cursor = undefined;
+  do {
+    const body = { page_size: 100, filter: { property: 'Done', checkbox: { equals: false } } };
+    if (cursor) body.start_cursor = cursor;
+    const res = await notionReq('POST', `/databases/${DB_ID}/query`, body);
+    all = all.concat(res.results.map(parseNotionTask));
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+  // Also fetch recently completed (last 30 days) for completion view
+  const res2 = await notionReq('POST', `/databases/${DB_ID}/query`, {
+    page_size: 50,
+    filter: { property: 'Done', checkbox: { equals: true } }
+  });
+  all = all.concat(res2.results.map(parseNotionTask));
+  return all;
+}
+
+async function createNotionTask(t) {
+  const res = await notionReq('POST', '/pages', {
+    parent: { database_id: DB_ID },
+    properties: notionProps(t),
+  });
+  t.notion_id = res.id;
+  save();
+  return res.id;
+}
+
+async function updateNotionTask(t) {
+  if (!t.notion_id) { await createNotionTask(t); return; }
+  await notionReq('PATCH', `/pages/${t.notion_id}`, { properties: notionProps(t) });
+}
+
+async function archiveNotionTask(notionId) {
+  await notionReq('PATCH', `/pages/${notionId}`, { archived: true });
+}
+
+// ════════════════════════════════════════════
+//  SYNC
+// ════════════════════════════════════════════
+async function syncNotion() {
+  if (syncing) return;
+  if (!apiKey) { openSetup(); return; }
+  syncing = true;
+  setSyncStatus('busy', 'Syncing with Notion...');
+  document.getElementById('sync-btn').classList.add('syncing');
+  try {
+    // Push any local-only tasks first
+    const localOnly = tasks.filter(t => !t.notion_id);
+    for (const t of localOnly) { await createNotionTask(t); }
+    // Fetch everything from Notion
+    const notionTasks = await fetchAllTasks();
+    // Build map by id (TaskID field) and notion_id
+    const byTaskId = {};
+    notionTasks.forEach(t => { if (t.id) byTaskId[t.id] = t; byTaskId[t.notion_id] = t; });
+    // Merge: Notion wins on data, keep local ordering
+    tasks = notionTasks;
+    save();
+    setSyncStatus('ok', `Synced — ${tasks.filter(t=>!t.done).length} active tasks`);
+    toast('✓ Synced with Notion', 'ok');
+    render();
+    checkTemplateRenewals();
+  } catch(e) {
+    setSyncStatus('err', 'Sync failed — ' + e.message.slice(0,50));
+    toast('Sync failed: ' + e.message.slice(0,60), 'err');
+    if (tasks.length) render(); // render from cache
+  }
+  document.getElementById('sync-btn').classList.remove('syncing');
+  syncing = false;
+}
+
+function setSyncStatus(state, msg) {
+  const bar = document.getElementById('sstrip');
+  const dot = document.getElementById('sdot');
+  document.getElementById('smsg').textContent = msg;
+  dot.className = 'sdot' + (state === 'err' ? ' err' : state === 'busy' ? ' busy' : '');
+  bar.classList.add('on');
+  if (state === 'ok') setTimeout(() => bar.classList.remove('on'), 3000);
+}
+
+// ════════════════════════════════════════════
+//  ANNUAL TEMPLATE AUTO-RENEWAL
+// ════════════════════════════════════════════
+async function checkTemplateRenewals() {
+  const year = new Date().getFullYear();
+  // Find template root projects
+  const templateGroups = {};
+  tasks.filter(t => t.templateId && !t.done).forEach(t => {
+    if (!templateGroups[t.templateId]) templateGroups[t.templateId] = [];
+    templateGroups[t.templateId].push(t);
+  });
+  for (const [tmplId, group] of Object.entries(templateGroups)) {
+    const roots = group.filter(t => !t.parentId || !group.find(g => g.id === t.parentId));
+    for (const root of roots) {
+      if (root.type !== 'Project') continue;
+      const subtasks = getDescendants(root.id);
+      const allDone = subtasks.length > 0 && subtasks.every(t => t.done);
+      if (!allDone) continue;
+      // Check if next year's version already exists
+      const nextYearExists = tasks.some(t => t.templateId === tmplId && !t.done &&
+        t.title.includes(String(year + 1)));
+      if (nextYearExists) continue;
+      // Auto-clone the project for next year!
+      await cloneTemplateProject(root, subtasks, year + 1);
+      toast(`✓ Auto-renewed "${root.title}" for ${year + 1}!`, 'ok');
+    }
+  }
+}
+
+async function cloneTemplateProject(root, subtasks, newYear) {
+  const thisYear = new Date().getFullYear();
+  function shiftYear(title) { return title.replace(String(thisYear), String(newYear)); }
+  function shiftDate(d) {
+    if (!d) return '';
+    return d.replace(String(thisYear), String(newYear));
+  }
+  function cloneTask(orig, newParentId) {
+    return {
+      id: uid(), notion_id: '',
+      title: shiftYear(orig.title),
+      type: orig.type, priority: orig.priority,
+      context: orig.context, flag: '', status: 'Inbox',
+      done: false, sequential: orig.sequential, starred: false,
+      notes: orig.notes, parentId: newParentId || '',
+      dependsOn: '', templateId: orig.templateId,
+      effort: orig.effort, energy: orig.energy,
+      importance: orig.importance, urgency: orig.urgency,
+      sortOrder: orig.sortOrder, recur: '',
+      due: shiftDate(orig.due), start: shiftDate(orig.start),
+      completedAt: '',
+    };
+  }
+  // Clone root
+  const newRoot = cloneTask(root, '');
+  tasks.unshift(newRoot);
+  save();
+  await createNotionTask(newRoot);
+  // Clone subtasks, maintaining hierarchy
+  const idMap = { [root.id]: newRoot.id };
+  for (const st of subtasks) {
+    const newParentId = idMap[st.parentId] || newRoot.id;
+    const newSt = cloneTask(st, newParentId);
+    idMap[st.id] = newSt.id;
+    tasks.push(newSt);
+    save();
+    await createNotionTask(newSt);
+  }
+  render();
+}
+
+function getDescendants(parentId) {
+  const result = [];
+  function recurse(pid) {
+    tasks.filter(t => t.parentId === pid).forEach(t => { result.push(t); recurse(t.id); });
+  }
+  recurse(parentId);
+  return result;
+}
+
+// ════════════════════════════════════════════
+//  GTD LOGIC — Next Actions
+// ════════════════════════════════════════════
+function isBlocked(t) {
+  if (!t.dependsOn) return false;
+  return t.dependsOn.split(',').map(s => s.trim()).some(depId => {
+    const dep = tasks.find(x => x.id === depId || x.notion_id === depId);
+    return dep && !dep.done;
+  });
+}
+
+function getNextActions() {
+  return tasks.filter(t => {
+    if (t.done || t.flag === 'Someday Maybe' || t.type === 'Project' || t.type === 'Folder') return false;
+    if (isBlocked(t)) return false;
+    // Sequential check
+    const parent = tasks.find(p => p.id === t.parentId || p.notion_id === t.parentId);
+    if (parent?.sequential) {
+      const sibs = tasks.filter(s => (s.parentId === parent.id || s.parentId === parent.notion_id) && !s.done);
+      return sibs.length > 0 && sibs[0].id === t.id;
+    }
+    // Start date check
+    if (t.start && t.start > today()) return false;
+    return true;
+  });
+}
+
+function projectCompletion(proj) {
+  const kids = getDescendants(proj.id);
+  if (!kids.length) return null;
+  const done = kids.filter(t => t.done).length;
+  return { done, total: kids.length, pct: Math.round(done / kids.length * 100) };
+}
+
+// ════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════
+function updateBadges() {
+  const active = tasks.filter(t => !t.done);
+  const sets = {
+    inbox:     active.filter(t => !t.parentId && !t.flag && t.type === 'Task').length,
+    next:      getNextActions().length,
+    starred:   active.filter(t => t.starred).length,
+    projects:  active.filter(t => t.type === 'Project').length,
+    due:       active.filter(t => t.due).length,
+    waiting:   active.filter(t => t.flag === 'Waiting For').length,
+    someday:   active.filter(t => t.flag === 'Someday Maybe').length,
+    templates: tasks.filter(t => t.templateId).length,
+  };
+  Object.entries(sets).forEach(([k, v]) => {
+    ['sbd-','nb-','mb-'].forEach(pfx => {
+      const el = document.getElementById(pfx + k);
+      if (!el) return;
+      if (pfx === 'nb-') { el.textContent = v; el.style.display = v > 0 ? 'flex' : 'none'; }
+      else el.textContent = v;
+    });
+  });
+  // Contexts sidebar
+  const ctxEl = document.getElementById('sb-contexts');
+  if (ctxEl) {
+    const ctxCounts = {};
+    active.filter(t => t.context).forEach(t => { ctxCounts[t.context] = (ctxCounts[t.context]||0)+1; });
+    ctxEl.innerHTML = Object.entries(ctxCounts).map(([c,n]) =>
+      `<div class="sb-ctx${ctxFilter===c?' on':''}" onclick="filterCtx('${c}')">
+        <span class="ctxdot" style="background:${CTX_COLORS[c]||'#888'}"></span>${c}
+        <span class="sb-badge" style="margin-left:auto">${n}</span>
+      </div>`
+    ).join('');
+    // Capture parent selector
+    updateParentSel();
+  }
+}
+
+function filterCtx(ctx) { ctxFilter = (ctxFilter === ctx) ? null : ctx; goView('context'); }
+function updateParentSel() {
+  const sel = document.getElementById('cap-parent'); if (!sel) return;
+  const projs = tasks.filter(t => (t.type === 'Project' || t.type === 'Folder') && !t.done);
+  sel.innerHTML = '<option value="">📥 Inbox (top level)</option>' + projs.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+}
+
+function render() {
+  updateBadges();
+  // Nav active state
+  ['inbox','next','starred','projects','context','due','waiting','someday','outline','completed','templates'].forEach(v => {
+    document.getElementById('si-'+v)?.classList.toggle('on', v === view);
+    document.getElementById('ni-'+v)?.classList.toggle('on', v === view);
+  });
+  const moreViews = ['starred','context','due','waiting','someday','outline','templates','completed'];
+  document.getElementById('ni-more')?.classList.toggle('on', moreViews.includes(view));
+  document.getElementById('hdr-view').textContent = VIEWS[view] || view;
+  document.getElementById('vtitle').textContent = VIEWS[view] || view;
+  const list = document.getElementById('tlist'); list.innerHTML = '';
+
+  if (!apiKey && tasks.length === 0) { renderSetupPrompt(list); updateCount(0); return; }
+
+  if (view === 'inbox')     renderFlat(list, t => !t.parentId && !t.flag && t.type === 'Task' && (showDone||!t.done));
+  else if (view === 'next') renderNext(list);
+  else if (view === 'starred') renderFlat(list, t => t.starred && (showDone||!t.done));
+  else if (view === 'projects') renderProjects(list);
+  else if (view === 'context') renderByContext(list);
+  else if (view === 'due')  renderByDue(list);
+  else if (view === 'waiting') renderFlat(list, t => t.flag === 'Waiting For' && (showDone||!t.done));
+  else if (view === 'someday') renderFlat(list, t => t.flag === 'Someday Maybe' && (showDone||!t.done));
+  else if (view === 'outline') renderOutline(list, '', 0);
+  else if (view === 'completed') renderFlat(list, t => t.done);
+  else if (view === 'templates') renderTemplates(list);
+
+  updateCount(list.querySelectorAll('.trow').length);
+}
+
+function updateCount(n) { document.getElementById('vcnt').textContent = n + ' item' + (n===1?'':'s'); }
+
+function makeRow(t, depth=0) {
+  const el = document.createElement('div');
+  el.className = 'trow' + (t.done?' done':'') + (t.starred?' starred':'') + (isBlocked(t)?' blocked':'') + (selId===t.id?' sel':'');
+  el.dataset.depth = Math.min(depth, 3);
+  el.dataset.id = t.id;
+  el.onclick = () => openDetail(t.id);
+
+  // Check
+  const ck = document.createElement('div');
+  ck.className = 'tck' + (t.type!=='Task'?' proj':'') + (t.done?' done':'');
+  ck.ontouchstart = e => e.stopPropagation();
+  ck.onclick = e => { e.stopPropagation(); toggleDoneTask(t.id); };
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'tbody';
+  const name = document.createElement('div');
+  name.className = 'tname' + (t.type==='Project'?' proj':t.type==='Folder'?' folder':'');
+  name.textContent = t.title;
+  body.appendChild(name);
+
+  // Progress bar for projects
+  if (t.type === 'Project') {
+    const comp = projectCompletion(t);
+    if (comp && comp.total > 0) {
+      const bar = document.createElement('div');
+      bar.className = 'progress-bar';
+      bar.innerHTML = `<div class="progress-fill" style="width:${comp.pct}%"></div>`;
+      body.appendChild(bar);
+    }
+  }
+
+  // Chips
+  const chips = document.createElement('div');
+  chips.className = 'tchips';
+  const addChip = (text, cls) => { const s = document.createElement('span'); s.className='chip '+cls; s.textContent=text; chips.appendChild(s); };
+  if (t.type!=='Task') addChip(t.type, 'pt');
+  if (t.context) addChip(t.context, 'ctx');
+  if (t.due) addChip('📅 '+t.due, 'due'+(t.due < today()?' over':''));
+  if (t.flag === 'Waiting For') addChip('⏳ waiting', 'fw');
+  if (t.flag === 'Someday Maybe') addChip('🌙 someday', 'fs');
+  if (t.flag === 'Delegated') addChip('👤 delegated', 'fd');
+  if (t.recur) addChip('🔄 '+t.recur.toLowerCase(), 'rc');
+  if (t.effort) addChip(t.effort, 'eff');
+  if (t.sequential) addChip('▶ sequential', 'seq');
+  if (t.dependsOn) addChip('🔒 blocked', 'dep');
+  if (t.templateId) addChip('📋 template', 'tmpl');
+  if (t.starred) addChip('⭐', 'star');
+  if (chips.children.length) body.appendChild(chips);
+
+  // Right side (priority + score)
+  const right = document.createElement('div');
+  right.className = 'tright';
+  const pbar = document.createElement('div');
+  pbar.className = 'tprio';
+  pbar.style.background = PRIO_COL[t.priority] || 'var(--dust3)';
+  right.appendChild(pbar);
+  if (sortByScore && !t.done) {
+    const sc = document.createElement('div'); sc.className = 'tscore'; sc.textContent = Math.round(score(t)); right.appendChild(sc);
+  }
+
+  el.appendChild(ck); el.appendChild(body); el.appendChild(right);
+  return el;
+}
+
+function renderFlat(list, filterFn) {
+  let items = tasks.filter(filterFn);
+  if (sortByScore) items.sort((a,b) => score(b) - score(a));
+  if (!items.length) { list.appendChild(empty()); return; }
+  items.forEach(t => list.appendChild(makeRow(t, 0)));
+}
+
+function renderNext(list) {
+  let items = getNextActions();
+  if (!showDone && false) {} // already filtered in getNextActions
+  if (sortByScore) items.sort((a,b) => score(b) - score(a));
+  if (!items.length) { list.appendChild(empty('⚡', 'All caught up!', 'No active next actions')); return; }
+  items.forEach(t => list.appendChild(makeRow(t, 0)));
+}
+
+function renderProjects(list) {
+  const projs = tasks.filter(t => t.type === 'Project' && (showDone||!t.done));
+  if (!projs.length) { list.appendChild(empty('📁', 'No projects', 'Capture a task and set type to Project')); return; }
+  projs.forEach(proj => {
+    list.appendChild(makeRow(proj, 0));
+    const kids = tasks.filter(t => (t.parentId === proj.id || t.parentId === proj.notion_id) && (showDone||!t.done));
+    kids.forEach(k => list.appendChild(makeRow(k, 1)));
+  });
+}
+
+function renderByContext(list) {
+  const ctxs = ctxFilter ? [ctxFilter] : Object.keys(CTX_COLORS);
+  let any = false;
+  ctxs.forEach(ctx => {
+    const items = tasks.filter(t => t.context === ctx && !t.done && (showDone||!t.done));
+    if (!items.length) return; any = true;
+    list.appendChild(groupHeader(ctx, items.length, CTX_COLORS[ctx]||'#888'));
+    items.forEach(t => list.appendChild(makeRow(t, 0)));
+  });
+  if (!any) list.appendChild(empty('🏷', 'No contexts set', 'Add @Context tags to your tasks'));
+}
+
+function renderByDue(list) {
+  const t0 = today();
+  const tom = new Date(Date.now()+86400000).toISOString().split('T')[0];
+  const wk  = new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+  const groups = [
+    {lbl:'Overdue', col:'var(--red)',  f: t => t.due && t.due < t0},
+    {lbl:'Today',   col:'var(--grn)',  f: t => t.due === t0},
+    {lbl:'Tomorrow',col:'var(--gold)', f: t => t.due === tom},
+    {lbl:'This Week',col:'var(--blue)',f: t => t.due > tom && t.due <= wk},
+    {lbl:'Later',   col:'var(--dust2)',f: t => t.due > wk},
+  ];
+  let any = false;
+  groups.forEach(g => {
+    const items = tasks.filter(t => !t.done && g.f(t));
+    if (!items.length) return; any = true;
+    list.appendChild(groupHeader(g.lbl, items.length, g.col));
+    items.forEach(t => list.appendChild(makeRow(t, 0)));
+  });
+  if (!any) list.appendChild(empty('📅', 'No due dates', 'Add due dates to tasks to see them here'));
+}
+
+function renderOutline(list, parentId, depth) {
+  tasks.filter(t => (t.parentId||'') === (parentId||'') && (showDone||!t.done))
+    .sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0))
+    .forEach(t => { list.appendChild(makeRow(t, depth)); renderOutline(list, t.id, depth+1); });
+}
+
+function renderTemplates(list) {
+  const tmplGroups = {};
+  tasks.filter(t => t.templateId).forEach(t => {
+    if (!tmplGroups[t.templateId]) tmplGroups[t.templateId] = [];
+    tmplGroups[t.templateId].push(t);
+  });
+  if (!Object.keys(tmplGroups).length) {
+    list.innerHTML = `<div style="padding:16px 14px"><div class="notion-banner"><p>No annual templates yet. Mark a project as an <strong>Annual Template</strong> in its detail panel. When all tasks complete, FlowState auto-creates next year's version.</p></div></div>`;
+    return;
+  }
+  Object.entries(tmplGroups).forEach(([id, group]) => {
+    list.appendChild(groupHeader('📋 ' + id, group.length, 'var(--gold)'));
+    group.filter(t => !t.parentId || !group.find(g => g.id === t.parentId))
+      .forEach(root => { list.appendChild(makeRow(root, 0)); getDescendants(root.id).forEach(c => list.appendChild(makeRow(c, 1))); });
+  });
+}
+
+function renderSetupPrompt(list) {
+  list.innerHTML = `<div class="setup">
+    <h2>Welcome to FlowState</h2>
+    <p>Your GTD workspace is ready in Notion. Connect your Notion API key to start syncing tasks.</p>
+    <button class="btn-primary" onclick="openSetup()" style="margin-top:0">Connect Notion →</button>
+    <p style="margin-top:16px;font-size:12px;color:var(--dust2)">Or use without sync — all features work locally, sync when ready.</p>
+    <button class="btn-secondary" onclick="document.getElementById('setup').style.display='none';render()" style="margin-top:4px">Use without Notion for now</button>
+  </div>`;
+}
+
+function groupHeader(label, count, color) {
+  const el = document.createElement('div');
+  el.className = 'ghdr';
+  el.innerHTML = `<span class="gdot" style="background:${color}"></span>${label}<span class="gcnt">${count}</span>`;
+  return el;
+}
+
+function empty(ico='✨', t='Nothing here', s='Tap + Capture to add tasks') {
+  const el = document.createElement('div');
+  el.className = 'empty';
+  el.innerHTML = `<div class="empty-ico">${ico}</div><div class="empty-t">${t}</div><div class="empty-s">${s}</div>`;
+  return el;
+}
+
+// ════════════════════════════════════════════
+//  TASK OPERATIONS
+// ════════════════════════════════════════════
+async function toggleDoneTask(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  t.done = !t.done;
+  if (t.done) t.completedAt = today();
+  save(); render();
+  toast(t.done ? '✓ Completed' : '↩ Reopened');
+  try { await updateNotionTask(t); } catch(e) { toast('Sync error: ' + e.message.slice(0,40), 'err'); }
+  // Handle recurrence
+  if (t.done && t.recur) { await handleRecurrence(t); }
+  // Check template renewal
+  if (t.done && t.templateId) { await checkTemplateRenewals(); }
+}
+
+async function handleRecurrence(t) {
+  const d = t.due ? new Date(t.due) : new Date();
+  if (t.recur === 'Daily')   d.setDate(d.getDate() + 1);
+  else if (t.recur === 'Weekly')  d.setDate(d.getDate() + 7);
+  else if (t.recur === 'Monthly') d.setMonth(d.getMonth() + 1);
+  else if (t.recur === 'Yearly')  d.setFullYear(d.getFullYear() + 1);
+  const newTask = { ...t, id: uid(), notion_id: '', done: false, completedAt: '', due: d.toISOString().split('T')[0] };
+  tasks.push(newTask); save(); render();
+  await createNotionTask(newTask);
+  toast('🔄 New recurring task created');
+}
+
+function openDetail(id) {
+  selId = id;
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  selPrio = t.priority || '4 - None';
+  selFlag = t.flag || '';
+  document.getElementById('d-title').value = t.title;
+  document.getElementById('d-notes').value = t.notes || '';
+  document.getElementById('d-type').value = t.type || 'Task';
+  document.getElementById('d-ctx').value = t.context || '';
+  document.getElementById('d-due').value = t.due || '';
+  document.getElementById('d-start').value = t.start || '';
+  document.getElementById('d-recur').value = t.recur || '';
+  document.getElementById('d-effort').value = t.effort || '';
+  document.getElementById('d-energy').value = t.energy || '';
+  document.getElementById('d-deps').value = t.dependsOn || '';
+  document.getElementById('d-imp').value = t.importance ?? 50;
+  document.getElementById('d-imp-val').textContent = t.importance ?? 50;
+  document.getElementById('d-urg').value = t.urgency ?? 50;
+  document.getElementById('d-urg-val').textContent = t.urgency ?? 50;
+  document.getElementById('d-tmplid').value = t.templateId || '';
+  document.getElementById('t-seq').classList.toggle('on', !!t.sequential);
+  document.getElementById('t-star').classList.toggle('on', !!t.starred);
+  document.getElementById('t-tmpl').classList.toggle('on', !!t.templateId);
+  document.getElementById('tmpl-section').style.display = t.templateId ? 'block' : 'none';
+  ['1 - High','2 - Medium','3 - Low','4 - Low','4 - None'].forEach((p,i) => {
+    document.getElementById('dp'+(i+1))?.classList.toggle('on', selPrio === p);
+  });
+  ['Waiting For','Someday Maybe','Delegated'].forEach((f,i) => {
+    document.getElementById(['dfw','dfs','dfd'][i])?.classList.toggle('on', selFlag === f);
+  });
+  const icons = {Task:'✅ Task', Project:'📁 Project', Folder:'📂 Folder'};
+  document.getElementById('d-type-lbl').textContent = icons[t.type] || '✅ Task';
+  document.getElementById('d-ovl').classList.add('on');
+  document.getElementById('d-sheet').classList.add('on');
+  render();
+}
+
+function closeDetail() {
+  selId = null;
+  document.getElementById('d-ovl').classList.remove('on');
+  document.getElementById('d-sheet').classList.remove('on');
+  render();
+}
+
+function setPrio(p) {
+  selPrio = p;
+  const t = tasks.find(x => x.id === selId); if (t) { t.priority = p; save(); }
+  ['1 - High','2 - Medium','3 - Low','4 - Low','4 - None'].forEach((pr,i) => document.getElementById('dp'+(i+1))?.classList.toggle('on', pr===p));
+}
+
+function toggleFlag(f) {
+  selFlag = selFlag === f ? '' : f;
+  const t = tasks.find(x => x.id === selId); if (t) { t.flag = selFlag; save(); }
+  ['Waiting For','Someday Maybe','Delegated'].forEach((fl,i) => document.getElementById(['dfw','dfs','dfd'][i])?.classList.toggle('on', fl===selFlag));
+}
+
+function toggleTemplateSection() { document.getElementById('tmpl-section').style.display = document.getElementById('t-tmpl').classList.contains('on') ? 'block' : 'none'; }
+
+async function saveDetail() {
+  const t = tasks.find(x => x.id === selId); if (!t) return;
+  const btn = document.getElementById('d-save-btn');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  t.title = document.getElementById('d-title').value.trim() || t.title;
+  t.notes = document.getElementById('d-notes').value;
+  t.type = document.getElementById('d-type').value;
+  t.context = document.getElementById('d-ctx').value;
+  t.priority = selPrio;
+  t.flag = selFlag;
+  t.due = document.getElementById('d-due').value;
+  t.start = document.getElementById('d-start').value;
+  t.recur = document.getElementById('d-recur').value;
+  t.effort = document.getElementById('d-effort').value;
+  t.energy = document.getElementById('d-energy').value;
+  t.dependsOn = document.getElementById('d-deps').value.trim();
+  t.importance = parseInt(document.getElementById('d-imp').value);
+  t.urgency = parseInt(document.getElementById('d-urg').value);
+  t.sequential = document.getElementById('t-seq').classList.contains('on');
+  t.starred = document.getElementById('t-star').classList.contains('on');
+  t.templateId = document.getElementById('t-tmpl').classList.contains('on') ? document.getElementById('d-tmplid').value.trim() : '';
+  save(); closeDetail();
+  try { await updateNotionTask(t); toast('✓ Saved to Notion', 'ok'); } catch(e) { toast('Saved locally (Notion error)', 'err'); }
+  btn.textContent = '💾 Save Changes'; btn.disabled = false;
+}
+
+async function deleteTask() {
+  if (!selId) return;
+  if (!confirm('Delete this task and all its subtasks?')) return;
+  const t = tasks.find(x => x.id === selId);
+  const toDelete = [t, ...getDescendants(selId)];
+  toDelete.forEach(d => { tasks = tasks.filter(x => x.id !== d.id); });
+  save(); closeDetail(); render();
+  for (const d of toDelete) { if (d.notion_id) { try { await archiveNotionTask(d.notion_id); } catch(e) {} } }
+  toast('Deleted');
+}
+
+async function addSubHere() {
+  const parentId = selId; closeDetail(); openCapture(parentId);
+}
+
+async function duplicateTask() {
+  const t = tasks.find(x => x.id === selId); if (!t) return;
+  const dup = { ...t, id: uid(), notion_id: '', title: t.title + ' (copy)', done: false, completedAt: '' };
+  tasks.push(dup); save(); closeDetail(); render();
+  toast('Duplicated');
+  try { await createNotionTask(dup); } catch(e) {}
+}
+
+// ════════════════════════════════════════════
+//  CAPTURE
+// ════════════════════════════════════════════
+let captureParent = null;
+function openCapture(parentId = null) {
+  captureParent = parentId;
+  document.getElementById('cap-in').value = '';
+  document.getElementById('cap-type').value = 'Task';
+  document.getElementById('cap-ctx').value = '';
+  document.getElementById('cap-prio').value = '4 - None';
+  document.getElementById('cap-flag').value = '';
+  document.getElementById('cap-due').value = '';
+  updateParentSel();
+  if (parentId) {
+    const p = tasks.find(t => t.id === parentId);
+    if (p) document.getElementById('cap-parent').value = p.id;
+  } else { document.getElementById('cap-parent').value = ''; }
+  document.getElementById('c-ovl').classList.add('on');
+  document.getElementById('c-sheet').classList.add('on');
+  setTimeout(() => document.getElementById('cap-in').focus(), 320);
+}
+
+function closeCapture() {
+  document.getElementById('c-ovl').classList.remove('on');
+  document.getElementById('c-sheet').classList.remove('on');
+}
+
+async function saveCapture() {
+  const title = document.getElementById('cap-in').value.trim();
+  if (!title) { toast('Please enter a task title', 'err'); return; }
+  const btn = document.getElementById('cap-btn');
+  btn.textContent = 'Adding...'; btn.disabled = true;
+  const parentVal = document.getElementById('cap-parent').value;
+  const t = {
+    id: uid(), notion_id: '',
+    title,
+    type: document.getElementById('cap-type').value,
+    priority: document.getElementById('cap-prio').value || '4 - None',
+    context: document.getElementById('cap-ctx').value,
+    flag: document.getElementById('cap-flag').value,
+    status: 'Inbox', done: false, sequential: false, starred: false,
+    notes: '', parentId: parentVal || '',
+    dependsOn: '', templateId: '',
+    effort: '', energy: '',
+    importance: 50, urgency: 50, sortOrder: Date.now(),
+    recur: '', due: document.getElementById('cap-due').value,
+    start: '', completedAt: '',
+  };
+  tasks.unshift(t); save(); closeCapture(); render();
+  toast('Added ✓');
+  btn.textContent = 'Add Task ＋'; btn.disabled = false;
+  try { await createNotionTask(t); } catch(e) { toast('Saved locally (Notion: ' + e.message.slice(0,30) + ')', 'err'); }
+}
+
+// ════════════════════════════════════════════
+//  VIEW + SORT
+// ════════════════════════════════════════════
+function goView(v) { view = v; ctxFilter = null; render(); document.getElementById('main').scrollTop = 0; }
+function toggleDone() { showDone = !showDone; document.getElementById('btn-done').classList.toggle('on', showDone); render(); }
+function toggleSort() { sortByScore = !sortByScore; document.getElementById('btn-sort').classList.toggle('on', sortByScore); render(); }
+
+// ════════════════════════════════════════════
+//  MORE / SETUP / AI / WEEKLY REVIEW
+// ════════════════════════════════════════════
+function openMore()  { document.getElementById('m-ovl').classList.add('on'); document.getElementById('m-sheet').classList.add('on'); }
+function closeMore() { document.getElementById('m-ovl').classList.remove('on'); document.getElementById('m-sheet').classList.remove('on'); }
+function openSetup()  { document.getElementById('setup-key').value = apiKey; document.getElementById('setup-ovl').classList.add('on'); document.getElementById('setup-sheet').classList.add('on'); }
+function closeSetup() { document.getElementById('setup-ovl').classList.remove('on'); document.getElementById('setup-sheet').classList.remove('on'); }
+
+async function saveSetup() {
+  const key = document.getElementById('setup-key').value.trim();
+  const res = document.getElementById('setup-result');
+  res.textContent = 'Testing connection...'; res.style.color = 'var(--dust2)';
+  try {
+    const r = await fetch(`${NOTION_API}/databases/${DB_ID}`, { headers: { 'Authorization': 'Bearer '+key, 'Notion-Version': NOTION_VER } });
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' — check key and that FlowState integration has access to the database');
+    apiKey = key; localStorage.setItem('fs4_key', key);
+    res.textContent = '✓ Connected! Syncing...'; res.style.color = 'var(--grn)';
+    setTimeout(() => { closeSetup(); syncNotion(); }, 800);
+  } catch(e) { res.textContent = '✗ ' + e.message; res.style.color = 'var(--red)'; }
+}
+
+function openAI()  { document.getElementById('ai-ovl').classList.add('on'); document.getElementById('ai-panel').classList.add('on'); setTimeout(() => document.getElementById('ai-inp').focus(), 300); }
+function closeAI() { document.getElementById('ai-ovl').classList.remove('on'); document.getElementById('ai-panel').classList.remove('on'); }
+
+function openWeeklyReview() { aiHistory = []; openAI(); document.getElementById('ai-inp').value = 'Run a full GTD weekly review of my system'; aiSend(); }
+
+function buildTaskContext() {
+  const active = tasks.filter(t => !t.done);
+  const inbox = active.filter(t => !t.parentId && !t.flag && t.type === 'Task');
+  const projs = active.filter(t => t.type === 'Project');
+  const next = getNextActions();
+  const waiting = active.filter(t => t.flag === 'Waiting For');
+  const someday = active.filter(t => t.flag === 'Someday Maybe');
+  const overdue = active.filter(t => t.due && t.due < today());
+  const starred = active.filter(t => t.starred);
+  return `FLOWSTATE GTD SYSTEM — LIVE TASK DATA (${today()}):
+
+INBOX [${inbox.length}]:
+${inbox.slice(0,20).map(t=>`• "${t.title}"${t.priority!=='4 - None'?' [P:'+t.priority+']':''}`).join('\n')||'(empty)'}
+
+PROJECTS [${projs.length}]:
+${projs.map(p=>{const comp=projectCompletion(p);const kids=tasks.filter(c=>(c.parentId===p.id||c.parentId===p.notion_id)&&!c.done);return `• "${p.title}"${comp?' ('+comp.done+'/'+comp.total+' done)':''} — subtasks: ${kids.slice(0,5).map(c=>'"'+c.title+'"').join(', ')||'none'}`;}).join('\n')||'(none)'}
+
+NEXT ACTIONS [${next.length}]:
+${next.slice(0,15).map(t=>`• "${t.title}"${t.context?' ['+t.context+']':''}${t.effort?' ['+t.effort+']':''}`).join('\n')||'(none)'}
+
+WAITING FOR [${waiting.length}]:
+${waiting.slice(0,10).map(t=>`• "${t.title}"`).join('\n')||'(none)'}
+
+OVERDUE [${overdue.length}]:
+${overdue.slice(0,10).map(t=>`• "${t.title}" (due ${t.due})`).join('\n')||'(none)'}
+
+STARRED / FOCUS [${starred.length}]:
+${starred.slice(0,8).map(t=>`• "${t.title}"`).join('\n')||'(none)'}
+
+SOMEDAY/MAYBE [${someday.length}]: ${someday.slice(0,5).map(t=>'"'+t.title+'"').join(', ')||'(none)'}
+
+ANNUAL TEMPLATES: ${[...new Set(tasks.filter(t=>t.templateId).map(t=>t.templateId))].join(', ')||'none'}`;
+}
+
+async function aiSend() {
+  const inp = document.getElementById('ai-inp');
+  const msg = inp.value.trim(); if (!msg) return;
+  inp.value = '';
+  appendMsg(msg, 'u');
+  const ld = appendMsg('thinking...', 'a ld');
+  aiHistory.push({ role: 'user', content: msg });
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        system: `You are an expert GTD productivity coach embedded in FlowState — a task manager that mirrors MyLifeOrganized's functionality with Notion sync. You have full access to the user's live task system below.
+
+${buildTaskContext()}
+
+Rules:
+- Be specific to THEIR actual tasks — reference real task titles
+- Be concise and actionable — no fluff
+- For weekly reviews, check all 5 GTD horizons: next actions, projects, waiting for, someday/maybe, reference
+- For "what now?" questions, consider context, energy, effort, and importance/urgency scores
+- Suggest using sequential subtasks for projects with dependencies
+- Remind about annual templates when discussing yearly recurring projects
+- Format with bullet points; keep responses under 300 words unless doing a full weekly review`,
+        messages: aiHistory,
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.find(b => b.type==='text')?.text || 'No response';
+    ld.textContent = text; ld.className = 'msg a';
+    aiHistory.push({ role: 'assistant', content: text });
+  } catch(e) { ld.textContent = '✗ Error: ' + e.message; ld.className = 'msg a'; }
+  document.getElementById('ai-msgs').scrollTop = 9999;
+}
+function aiQ(m) { document.getElementById('ai-inp').value = m; aiSend(); }
+function appendMsg(t, cls) {
+  const msgs = document.getElementById('ai-msgs');
+  const d = document.createElement('div'); d.className='msg '+cls; d.textContent=t; msgs.appendChild(d); msgs.scrollTop=9999; return d;
+}
+
+// ════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════
+let toastT;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className='toast on'+(type?' '+type:'');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+// ════════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); openCapture(); }
+  if (e.key==='Escape') { closeDetail(); closeCapture(); closeAI(); closeMore(); closeSetup(); }
+});
+
+// ════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════
+render();
+if (apiKey) { syncNotion(); } else { setSyncStatus('err', 'Not connected — tap ⚙ Settings to add Notion API key'); }
+</script>
+</body>
+</html>
